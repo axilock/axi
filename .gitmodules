@@ -1,0 +1,3 @@
+[submodule "axi-protos"]
+	path = axi-protos
+	url = git@github.com:axilock/axi-protos.git

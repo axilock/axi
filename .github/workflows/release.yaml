@@ -1,0 +1,72 @@
+name: release binary to users
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  build-binary:
+    name: Publish the binary to s3
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, darwin]
+        arch: [amd64, arm64]
+    env:
+        GOPRIVATE: github.com/axilock
+        AWS_REGION: ap-south-1
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v4
+      with:
+          fetch-depth: 0  # Ensure full history and tags are fetched
+
+
+    - uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-region: ap-south-1
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+    - name: Add SSH Go Module Private Key
+      env:
+          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+      run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          ssh-agent -a $SSH_AUTH_SOCK > /dev/null
+          ssh-add - <<< "${{ secrets.SSH_KEY }}"
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> $GITHUB_ENV  
+          git config --global url."ssh://git@github.com/".insteadOf https://github.com/    
+    - name: Set Up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: 1.24.0  # Specify your Go version
+    - name: Set Environment Variables
+      run: |
+        echo "VERSION=$(make version)" >> $GITHUB_ENV
+    - name: Build Binary
+      run: |
+        mkdir -p bin
+        git checkout $VERSION
+        if [ "${{ matrix.goos }}" = "windows" ]; then
+          EXT=".exe"
+        else
+          EXT=""
+        fi
+        echo "Building for GOOS=${{ matrix.goos }}, GOARCH=${{ matrix.arch }}"
+        GOOS=${{ matrix.goos }} GOARCH=${{ matrix.arch }} make release
+
+        mv bin/axi bin/axi-${{ matrix.goos }}-${{ matrix.arch }}${EXT}
+    - name: Upload Binary to S3
+      run: |
+        if [ "${{ matrix.goos }}" = "windows" ]; then
+          EXT=".exe"
+        else
+          EXT=""
+        fi
+        # Upload binary under a folder named with the OS-Arch combination.
+        aws s3 cp ./bin/axi-${{ matrix.goos }}-${{ matrix.arch }}${EXT} \
+          s3://sekrit-releases/release/$VERSION/${{ matrix.goos }}/${{ matrix.arch }}/axi${EXT}
+        # print s3 urls
+        echo "https://sekrit-releases.s3.ap-south-1.amazonaws.com/release/$VERSION/${{ matrix.goos }}/${{ matrix.arch }}/axi${EXT}"

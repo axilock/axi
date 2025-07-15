@@ -1,0 +1,9 @@
+# Ignore vim files:
+*~
+*.swp
+*.swo
+axi
+pre-push
+bin/
+
+.DS_Store
