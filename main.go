@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -34,7 +35,8 @@ type CLI struct {
 
 	Hook HookCmd `cmd:"" help:"Trigger axi-built hook"`
 
-	Sleep SleepCmd `cmd:"" help:"Sleep"`
+	Sleep        SleepCmd       `cmd:"" help:"Sleep"`
+	CheckUpdates UpdateCheckCmd `cmd:"" help:"Check for updates"`
 }
 
 type cleanupFunc func() error
@@ -62,15 +64,23 @@ func main() {
 
 	cfg := config.NewConfig().WithRuntimeFlags()
 
-	modeMessage := func(w ...any) {} // noop
+	modeMessage := func(w io.Writer, a ...any) {} // noop
+
 	if cfg.Environment == config.Dev {
-		modeMessage := color.New(color.FgBlue).FprintlnFunc()
+		modeMessage = color.New(color.FgBlue).FprintlnFunc()
 		modeMessage(os.Stderr, "[+] Developer build. Version: "+cfg.Version)
 	}
 
 	if cfg.Debug {
-		modeMessage(os.Stderr, "[+] Debug mode. Some flags will be overridden")
+		modeMessage = color.New(color.FgBlue).FprintlnFunc()
+		modeMessage(os.Stderr, "[!] Debug mode. Some flags will be overridden")
 		cfg = cfg.WithDebugFlags()
+	}
+
+	if cfg.Offline {
+		modeMessage = color.New(color.FgBlue).FprintlnFunc()
+		modeMessage(os.Stderr, "[!] Offline mode. Some flags will be overridden")
+		cfg = cfg.WithOfflineFlags()
 	}
 
 	if cfg.Verbose {
@@ -79,7 +89,7 @@ func main() {
 		logger.AddConsoleSink(os.Stderr)
 	}
 
-	if !cfg.Autoupdate {
+	if cfg.Autoupdate != "on" {
 		modeMessage(os.Stderr, "[-] Auto update disabled")
 	}
 
@@ -100,6 +110,8 @@ func main() {
 	}
 
 	context.SetDefaultLogger(logger.Logger)
+
+	logger.V(1).Info("Config loaded: \n" + cfg.AsYaml())
 
 	afs := filesio.AxiFS{Home: cfg.Home()}
 	key, err := afs.APIKey()
@@ -139,11 +151,11 @@ func main() {
 			cleanupAndExit(cleanupFuncs, ret)
 		}
 	case executable == "reference-transaction": // too noisy
-		cfg.Autoupdate = false
+		cfg.Autoupdate = "off"
 
 	default: // Catchall invocation
 		prog = func() {
-			if err := hooks.Catchall(grpcConn, cfg.Home(), executable, cfg.Version, os.Args[1:]...); err != nil {
+			if err := hooks.Catchall(grpcConn, &cfg, cfg.Home(), executable, cfg.Version, os.Args[1:]...); err != nil {
 				if h, ok := err.(*hooks.HookError); ok {
 					logger.Error(h.CausedBy, "Hook failed")
 					cleanupAndExit(cleanupFuncs, NewRetCode(err))
@@ -154,7 +166,8 @@ func main() {
 		}
 	}
 
-	if cfg.Autoupdate {
+	switch cfg.Autoupdate {
+	case "on":
 		updateCfg := overseer.Config{
 			Program:   func(state overseer.State) { prog() },
 			NoRestart: true,
@@ -167,7 +180,14 @@ func main() {
 			},
 		}
 		overseer.Run(updateCfg)
-	} else {
+	case "off":
+		prog()
+	case "notify":
+		response, _ := fetcher.UpdateRequest(grpcConn, cfg.Version, string(cfg.Environment))
+		if response.ToUpdate {
+			fmt.Fprintf(os.Stderr, "Update available. %s => %s\n", cfg.Version, response.LatestClientver)
+			fmt.Fprintf(os.Stderr, "Tip: you can enable autoupdate by setting ``autoupdate: true`` in ~/.axi/config.yaml\n")
+		}
 		prog()
 	}
 

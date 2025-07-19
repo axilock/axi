@@ -46,23 +46,27 @@ func (h *HookCmd) Run(
 		}
 
 		if len(out.Commits) > 0 {
-			err := sendCommitData(conn, repo, out.Commits)
-			if err != nil {
-				logger.Error(err, err.Error())
+			if !cfg.Offline {
+				err := sendCommitData(conn, repo, out.Commits)
+				if err != nil {
+					logger.Error(err, err.Error())
+				}
 			}
 		} else {
 			logger.V(1).Info("No commits to send")
 		}
 
 		if len(out.Secrets) > 0 {
-			err := sendSecretAlerts(conn, repo, out.Secrets)
-			if err != nil {
-				logger.Error(err, err.Error())
+			*ret = 1
+			if cfg.Offline {
+				err := sendSecretAlerts(conn, repo, out.Secrets)
+				if err != nil {
+					logger.Error(err, err.Error())
+				}
 			}
 			fmt.Fprint(os.Stderr, out.Message())
-			*ret = 1
 		} else {
-			logger.V(1).Info("No secrets to send")
+			logger.V(1).Info("No secret alerts to send")
 		}
 
 		return nil
@@ -89,7 +93,7 @@ func sendSecretAlerts(conn *grpc.ClientConn, repo string, secrets []scanner.Secr
 				IsVerified: false,
 				Fragment:   "",
 			}
-			ctx, cancel := context.WithGrpcTimeout(context.Background())
+			ctx, cancel := context.GRPCContext()
 			defer cancel()
 			if _, err := client.SecretAlert(ctx, &request); err != nil {
 				errc <- err
@@ -126,7 +130,7 @@ func sendCommitData(conn *grpc.ClientConn, repo string, commits []git.Commit) er
 		PushTime: timestamppb.Now(),
 	}
 
-	ctx, cancel := context.WithGrpcTimeout(context.Background())
+	ctx, cancel := context.GRPCContext()
 	defer cancel()
 
 	_, err := client.SendCommitData(ctx, &request)

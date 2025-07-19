@@ -1,6 +1,7 @@
 package filesio
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -51,6 +52,14 @@ func (s *AxiFS) Create() error {
 }
 
 func (s *AxiFS) Delete() error {
+	var logger = context.Background().Logger()
+
+	if !strings.HasSuffix(s.Home, ".axi") {
+		fmt.Println("Axi Home dir does not end with .axi. Refusing to delete") // safety
+		return nil
+	}
+
+	logger.Info("Deleting axi home", "home", s.Home)
 	return os.RemoveAll(s.Home)
 }
 

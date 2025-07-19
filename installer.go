@@ -53,33 +53,33 @@ func (c *InstallCmd) Run(cfg *config.Config, logger logr.Logger) error {
 		}()
 	}
 
-	if c.ApiKey == "" {
-		key, err := auth.Login(conn, cfg.BackendUrl)
+	if !cfg.Offline {
+		if c.ApiKey == "" {
+			key, err := auth.Login(conn, cfg.BackendUrl)
+			if err != nil {
+				return &ErrInstallationFailed{error: err}
+			}
+			c.ApiKey = key
+		}
+
+		reqMetadata := utils.GetSystemMetadataJson(cfg.Version)
+		client := pb.NewMetadataServiceClient(conn)
+		ctx, cancel := context.GRPCContext()
+		ctx = context.WithAuth(ctx, c.ApiKey)
+		defer cancel()
+		_, err = client.InitMetadata(ctx, &pb.InstallerInitRequest{
+			Status:   pb.InstallerInitRequest_STATE_INIT,
+			Metadata: reqMetadata,
+		})
 		if err != nil {
+			if grpcErr, ok := status.FromError(err); ok && grpcErr.Code() == codes.Unauthenticated {
+				logger.Error(err, "Unauthenticated: invalid api key")
+				fmt.Println("Unauthenticated")
+			} else {
+				logger.Error(err, "Could not sync server for installation")
+			}
 			return &ErrInstallationFailed{error: err}
 		}
-		c.ApiKey = key
-	}
-
-	reqMetadata := utils.GetSystemMetadataJson(cfg.Version)
-	client := pb.NewMetadataServiceClient(conn)
-
-	ctx, cancel := context.WithGrpcTimeout(context.Background())
-	ctx = context.WithAuth(ctx, c.ApiKey)
-	defer cancel()
-
-	_, err = client.InitMetadata(ctx, &pb.InstallerInitRequest{
-		Status:   pb.InstallerInitRequest_STATE_INIT,
-		Metadata: reqMetadata,
-	})
-	if err != nil {
-		if grpcErr, ok := status.FromError(err); ok && grpcErr.Code() == codes.Unauthenticated {
-			logger.Error(err, "Unauthenticated: invalid api key")
-			fmt.Println("Unauthenticated")
-		} else {
-			logger.Error(err, "Could not sync server for installation")
-		}
-		return &ErrInstallationFailed{error: err}
 	}
 
 	if err := installer.Install(cfg.Home(), c.ApiKey); err != nil {
@@ -87,12 +87,18 @@ func (c *InstallCmd) Run(cfg *config.Config, logger logr.Logger) error {
 		return &ErrInstallationFailed{error: err}
 	}
 
-	_, err = client.InitMetadata(ctx, &pb.InstallerInitRequest{
-		Status:   pb.InstallerInitRequest_STATE_DONE,
-		Metadata: "{}",
-	})
-	if err != nil {
-		logger.Info("Could not send installation done metadata")
+	if !cfg.Offline {
+		client := pb.NewMetadataServiceClient(conn)
+		ctx, cancel := context.GRPCContext()
+		ctx = context.WithAuth(ctx, c.ApiKey)
+		defer cancel()
+		_, err = client.InitMetadata(ctx, &pb.InstallerInitRequest{
+			Status:   pb.InstallerInitRequest_STATE_DONE,
+			Metadata: "{}",
+		})
+		if err != nil {
+			logger.Info("Could not send installation done metadata")
+		}
 	}
 
 	if err = <-errDeps; err != nil {

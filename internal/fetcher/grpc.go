@@ -26,57 +26,17 @@ func (s *GRPCFetcher) Init() error {
 		return errors.New("version must be specified")
 	}
 
-	if s.Interval == 0 {
-		s.Interval = 60 * time.Second
-	}
-
 	return nil
 }
 
 func (s *GRPCFetcher) Fetch() (io.Reader, error) {
-	var logger = context.Background().Logger().WithName("AutoUpdate")
+	logger := context.Background().Logger().WithName("AutoUpdate")
 
 	if s.Updated {
 		select {} // only one update per invocation
 	}
 
-	time.Sleep(s.Interval)
-
-	client := pb.NewHealthServiceClient(s.Conn)
-	request := pb.ClientUpdateRequest{ClientVer: s.Version}
-
-	switch runtime.GOOS {
-	case "darwin":
-		request.Os = pb.OS_OS_DARWIN
-	case "linux":
-		request.Os = pb.OS_OS_LINUX
-	case "windows":
-		request.Os = pb.OS_OS_WINDOWS
-	default:
-		request.Os = pb.OS_OS_UNSPECIFIED
-	}
-
-	switch runtime.GOARCH {
-	case "amd64":
-		request.Arch = pb.ARCH_ARCH_AMD64
-	case "arm64":
-		request.Arch = pb.ARCH_ARCH_ARM64
-	default:
-		request.Arch = pb.ARCH_ARCH_UNSPECIFIED
-	}
-
-	switch s.Environment {
-	case "dev":
-		request.Environment = pb.Env_ENV_DEV
-	case "release":
-		request.Environment = pb.Env_ENV_RELEASE
-	default:
-		request.Environment = pb.Env_ENV_UNSPECIFIED
-	}
-
-	ctx, cancel := context.WithGrpcTimeout(context.Background())
-	defer cancel()
-	response, err := client.ClientUpdateRpc(ctx, &request)
+	response, err := UpdateRequest(s.Conn, s.Version, s.Environment)
 	if err != nil {
 		return nil, err
 	}
@@ -104,4 +64,46 @@ func (s *GRPCFetcher) Fetch() (io.Reader, error) {
 	s.Updated = true // at most one successful update check per cli invocation
 	logger.Info("Update checked once. Will not check again")
 	return nil, nil
+}
+
+func UpdateRequest(conn *grpc.ClientConn, version string, environment string) (*pb.ClientUpdateResponse, error) {
+	client := pb.NewHealthServiceClient(conn)
+	request := pb.ClientUpdateRequest{ClientVer: version}
+
+	switch runtime.GOOS {
+	case "darwin":
+		request.Os = pb.OS_OS_DARWIN
+	case "linux":
+		request.Os = pb.OS_OS_LINUX
+	case "windows":
+		request.Os = pb.OS_OS_WINDOWS
+	default:
+		request.Os = pb.OS_OS_UNSPECIFIED
+	}
+
+	switch runtime.GOARCH {
+	case "amd64":
+		request.Arch = pb.ARCH_ARCH_AMD64
+	case "arm64":
+		request.Arch = pb.ARCH_ARCH_ARM64
+	default:
+		request.Arch = pb.ARCH_ARCH_UNSPECIFIED
+	}
+
+	switch environment {
+	case "dev":
+		request.Environment = pb.Env_ENV_DEV
+	case "release":
+		request.Environment = pb.Env_ENV_RELEASE
+	default:
+		request.Environment = pb.Env_ENV_UNSPECIFIED
+	}
+
+	ctx, cancel := context.GRPCContext()
+	defer cancel()
+	response, err := client.ClientUpdateRpc(ctx, &request)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
 }

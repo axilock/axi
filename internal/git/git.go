@@ -157,6 +157,8 @@ func execGitConfig(args ...string) (string, error) {
 			switch e.ExitCode() {
 			case 1: // key is not present in a get operation
 				return "", nil
+			case 5: // you try to unset an option which does not exist
+				return "", nil
 			}
 		}
 		return "", err

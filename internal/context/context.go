@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/axilock/axi/internal/config"
 	"github.com/go-logr/logr"
 	"google.golang.org/grpc/metadata"
 )
@@ -184,10 +185,23 @@ func WithAuth(parent Context, token string) Context {
 	}
 }
 
+func WithGrpcMetadata(parent Context) Context {
+	md := metadata.New(map[string]string{"cli-version": config.Version})
+	ctx := metadata.NewOutgoingContext(parent, md)
+	return logCtx{
+		log:     parent.Logger(),
+		Context: ctx,
+	}
+}
+
 func WithGrpcTimeout(parent Context) (Context, context.CancelFunc) {
 	return WithTimeout(parent, 150*time.Second)
 }
 
 func WithAuthRequestTimeout(parent Context) (Context, context.CancelFunc) {
 	return WithTimeout(parent, 2*time.Minute)
+}
+
+func GRPCContext() (Context, context.CancelFunc) {
+	return WithGrpcTimeout(WithGrpcMetadata(Background()))
 }

@@ -7,36 +7,38 @@ include config.mk
 
 
 CONFIG = github.com/axilock/axi/internal/config
-BASE_LDFLAGS = -X ${CONFIG}.version=$(VERSION) \
+BASE_LDFLAGS = -X ${CONFIG}.Version=$(VERSION) \
 			   -X ${CONFIG}.debug=$(DEBUG) \
 			   -X ${CONFIG}.autoupdate=$(AUTO_UPDATE) \
 			   -X ${CONFIG}.grpcServerName=$(GRPC_SERVER_NAME) \
 			   -X ${CONFIG}.grpcPort=$(GRPC_PORT) \
 			   -X ${CONFIG}.grpcTls=$(GRPC_TLS) \
 			   -X ${CONFIG}.sentryDsn=$(SENTRY_DSN) \
-			   -X ${CONFIG}.backendUrl=$(BACKEND_URL)
+			   -X ${CONFIG}.backendUrl=$(BACKEND_URL) \
+			   -X ${CONFIG}.verbose=$(VERBOSE) \
+			   -X ${CONFIG}.offline=$(OFFLINE)
 
 # Run make dev DEBUG=true for debug builds
 
 release:
 	@echo "Build version = $(VERSION)"
-	go build -ldflags "$(BASE_LDFLAGS) -X main.env=release" -o ${OUT_DIR}/ .
+	@go build -ldflags "$(BASE_LDFLAGS) -X ${CONFIG}.env=release" -o ${OUT_DIR}/ .
 
 dev:
 	@echo "Build version = $(VERSION_DEV)"
-	go build -ldflags "$(BASE_LDFLAGS) -X main.env=dev" -o ${OUT_DIR}/ .
+	@go build -ldflags "$(BASE_LDFLAGS) -X ${CONFIG}.env=dev" -o ${OUT_DIR}/ .
 
 local:
 	@echo "Build version = $(VERSION_LOCAL)"
-	go build -ldflags "$(BASE_LDFLAGS) -X main.env=local" -o ${OUT_DIR}/ .
+	@go build -ldflags "$(BASE_LDFLAGS) -X ${CONFIG}.env=dev" -o ${OUT_DIR}/ .
 
 dist: dist-dev dist-release dist-list
 
 dist-dev:
-	gh workflow run 138756169
+	gh workflow run .github/workflows/beta.yaml
 
 dist-release:
-	gh workflow run 136795013
+	gh workflow run .github/workflows/release.yaml
 
 dist-list:
 	gh run list

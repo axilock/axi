@@ -3,6 +3,7 @@ package hooks
 import (
 	"slices"
 
+	"github.com/axilock/axi/internal/config"
 	"github.com/axilock/axi/internal/context"
 	"github.com/axilock/axi/internal/filesio"
 	"github.com/axilock/axi/internal/git"
@@ -19,7 +20,7 @@ func (e CorruptedPrePushError) Error() string {
 	return "pre-push file corrupted. Please delete " + e.FilePath
 }
 
-func Catchall(conn *grpc.ClientConn, home, name, version string, args ...string) error {
+func Catchall(conn *grpc.ClientConn, cfg *config.Config, home, name, version string, args ...string) error {
 	var logger = context.Background().Logger()
 
 	if !git.IsInsideGitRepo() {
@@ -64,17 +65,19 @@ func Catchall(conn *grpc.ClientConn, home, name, version string, args ...string)
 			return err
 		}
 
-		metadata := utils.GetSystemMetadataJson(version)
-		client := pb.NewMetadataServiceClient(conn)
+		if !cfg.Offline {
+			metadata := utils.GetSystemMetadataJson(version)
+			client := pb.NewMetadataServiceClient(conn)
 
-		// FIXME: what if remote is not origin ? #7
-		repourl, _ := git.GetRemoteUrl("origin")
-		_, err := client.RepoMetadata(context.Background(), &pb.MetadataRepoRequest{
-			RepoUrl:  repourl,
-			Metadata: metadata,
-		})
-		if err != nil {
-			logger.Error(err, "Could not send repo metadata")
+			// FIXME: what if remote is not origin ? #7
+			repourl, _ := git.GetRemoteUrl("origin")
+			_, err := client.RepoMetadata(context.Background(), &pb.MetadataRepoRequest{
+				RepoUrl:  repourl,
+				Metadata: metadata,
+			})
+			if err != nil {
+				logger.Error(err, "Could not send repo metadata")
+			}
 		}
 	}
 

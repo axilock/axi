@@ -47,10 +47,9 @@ func New(name string) (*Logger, func() error) {
 	// Create a no-op core that doesn't output logs anywhere
 	noopCore := zapcore.NewNopCore()
 
-	// Build options for the logger
+	// Build options for the logger - use a more appropriate CallerSkip value
 	zapOpts := []zap.Option{
 		zap.AddCaller(),
-		zap.AddCallerSkip(1),
 		zap.Fields(zap.String("component", name)),
 	}
 
@@ -99,13 +98,7 @@ func (l *Logger) AddConsoleSink(w io.Writer) error {
 	if w == nil {
 		return fmt.Errorf("writer cannot be nil")
 	}
-
-	zapLogger, ok := l.GetSink().(zapr.Underlier)
-	if !ok {
-		return fmt.Errorf("failed to get underlying zap logger")
-	}
-
-	zl := zapLogger.GetUnderlying()
+	zl := l.underlyingZap
 
 	// Create a new console core
 	encoderConfig := zap.NewDevelopmentEncoderConfig()
@@ -176,12 +169,7 @@ func (l *Logger) AddSink(option SinkOption) error {
 
 // AddSentrySink adds a Sentry sink to the logger using configuration from the provided config
 func (l *Logger) AddSentrySink(config SentryConfig) error {
-	zapLogger, ok := l.GetSink().(zapr.Underlier)
-	if !ok {
-		return fmt.Errorf("failed to get underlying zap logger")
-	}
-
-	zl := zapLogger.GetUnderlying()
+	zl := l.underlyingZap
 
 	beforeSend := func(event *sentry.Event, hint *sentry.EventHint) *sentry.Event {
 		if slices.Contains(config.SentryLogLevelsToCapture, event.Level) {
@@ -206,9 +194,9 @@ func (l *Logger) AddSentrySink(config SentryConfig) error {
 	}
 
 	cfg := zapsentry.Configuration{
-		Level:             zapcore.ErrorLevel,
+		Level:             zapcore.DebugLevel,
 		EnableBreadcrumbs: true,
-		BreadcrumbLevel:   zapcore.InfoLevel,
+		BreadcrumbLevel:   zapcore.DebugLevel,
 		Tags:              map[string]string{"component": "system"},
 	}
 
