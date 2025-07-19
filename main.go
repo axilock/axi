@@ -185,7 +185,7 @@ func main() {
 	case "notify":
 		response, _ := fetcher.UpdateRequest(grpcConn, cfg.Version, string(cfg.Environment))
 		if response.ToUpdate {
-			fmt.Fprintf(os.Stderr, "Update available. %s => %s\n", cfg.Version, response.LatestClientver)
+			fmt.Fprintf(os.Stderr, "Axilock update available. %s => %s\n", cfg.Version, response.LatestClientver)
 			fmt.Fprintf(os.Stderr, "Tip: you can enable autoupdate by setting ``autoupdate: true`` in ~/.axi/config.yaml\n")
 		}
 		prog()
@@ -206,6 +206,7 @@ func NewRetCode(err error) retCode {
 	var unsupportedHook *hooks.ErrUnsupportedHook
 	var trufflehogError *scanner.ErrTrufflehogNotInstalled
 	var corruptedHook *hooks.ErrCorruptedHook
+	var hookError *hooks.HookError
 
 	// TODO: In case of non-secret errors, suggest running doctor
 	if errors.As(err, &corruptedHook) ||
@@ -216,6 +217,11 @@ func NewRetCode(err error) retCode {
 		logger.Error(err, "Irrecoverable error.")
 		fmt.Println(err.Error())
 		return 0
+	}
+
+	// hook errors are caused by axi pre-push run after install or some user hook
+	if errors.As(err, &hookError) {
+		return retCode(err.(*hooks.HookError).ExitCode)
 	}
 
 	log := true // some errors don't need to be logged (at sentry or cli) like unauth

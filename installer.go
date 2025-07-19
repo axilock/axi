@@ -120,7 +120,7 @@ func (c *ReInstallCmd) Run(cli *CLI, cfg *config.Config, logger logr.Logger, con
 }
 
 func (r *UninstallCmd) Run(cfg *config.Config, conn *grpc.ClientConn) error {
-	//TODO: Send logs to backend about uninstall
+	// TODO: Send logs to backend about uninstall
 	if err := git.UnsetGlobalCoreHooksPath(); err != nil {
 		return err
 	}
@@ -129,6 +129,7 @@ func (r *UninstallCmd) Run(cfg *config.Config, conn *grpc.ClientConn) error {
 	if err := afs.Delete(); err != nil {
 		return err
 	}
+	fmt.Println("Uninstall successfull")
 	return nil
 }
 
