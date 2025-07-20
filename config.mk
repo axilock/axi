@@ -1,9 +1,9 @@
 SENTRY_DSN := https://53606746038c542713687e67e2fe6d78@o4508122972291072.ingest.de.sentry.io/4508122974978128
-GRPC_SERVER_NAME := grpc.axilock.ai
-GRPC_PORT := 443
-BACKEND_URL := https://app.axilock.ai
-GRPC_TLS := true
-DEBUG := false
-AUTO_UPDATE := notify # on | off | notify
-VERBOSE := false
-OFFLINE := false
+GRPC_SERVER_NAME := grpc.axilock.ai   # the hostname of the insights grpc server
+GRPC_PORT := 443                      # the port of the insights grpc server
+BACKEND_URL := https://app.axilock.ai # the http/s url of the insights backend
+GRPC_TLS := true                      # are you using grpc tls ?
+DEBUG := false                        # debug mode
+AUTO_UPDATE := notify                 # on | off | notify, "on" replaces binary installed at ~/.axi/bin/axi
+VERBOSE := false                      # verbose mode
+OFFLINE := false                      # run completely offline
