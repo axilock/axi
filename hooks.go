@@ -26,9 +26,9 @@ func (h *HookCmd) Run(
 	cli *CLI,
 	cfg *config.Config,
 	conn *grpc.ClientConn,
-	ret *retCode,
+	ret *int,
 ) error {
-	var logger = context.Background().Logger()
+	logger := context.Background().Logger()
 
 	switch h.Name {
 	case "pre-push":
@@ -72,11 +72,10 @@ func (h *HookCmd) Run(
 		return nil
 	}
 	return &hooks.ErrUnsupportedHook{Name: string(h.Name)}
-
 }
 
 func sendSecretAlerts(conn *grpc.ClientConn, repo string, secrets []scanner.Secret) error {
-	var logger = context.Background().Logger()
+	logger := context.Background().Logger()
 
 	client := pb.NewAlertServiceClient(conn)
 	errc := make(chan error, 1)
@@ -108,7 +107,7 @@ func sendSecretAlerts(conn *grpc.ClientConn, repo string, secrets []scanner.Secr
 }
 
 func sendCommitData(conn *grpc.ClientConn, repo string, commits []git.Commit) error {
-	var logger = context.Background().Logger()
+	logger := context.Background().Logger()
 
 	client := pb.NewCommitDataServiceClient(conn)
 

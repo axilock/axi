@@ -39,26 +39,20 @@ type CLI struct {
 	CheckUpdates UpdateCheckCmd `cmd:"" help:"Check for updates"`
 }
 
-type cleanupFunc func() error
-type retCode int
-type IsAuth bool
-
-func cleanup(funcs ...cleanupFunc) {
-	for _, f := range funcs {
-		f()
-	}
-}
+type (
+	IsAuth bool
+)
 
 func main() {
-	var prog = func() {}
-	var cleanupFuncs []cleanupFunc // ensure cleanup on os.exit
+	prog := func() int { return 0 }
 
 	logger, sync := log.New("axi")
-	cleanupFuncs = append(cleanupFuncs, sync)
+	defer sync()
 
 	defer func() {
 		if r := recover(); r != nil {
-			cleanupAndExit(cleanupFuncs, NewRetCode(NewRuntimePanic(r)))
+			code := NewRetCode(NewRuntimePanic(r))
+			os.Exit(int(code))
 		}
 	}()
 
@@ -129,7 +123,7 @@ func main() {
 	}
 	defer grpcConn.Close()
 
-	isAuth := IsAuth(key != "") //FIXME: unused
+	isAuth := IsAuth(key != "") // FIXME: unused
 
 	executable := filepath.Base(os.Args[0])
 	logger.Info("Called as " + executable)
@@ -138,38 +132,41 @@ func main() {
 	switch {
 	case strings.HasPrefix(executable, filesio.AxiBinaryName): // CLI Invocation
 		var cli CLI
-		var ret retCode
+		ret := 0
 		ctx := kong.Parse(&cli, kong.Vars{
 			"version": cfg.Version,
 		},
 			kong.Bind(grpcConn, logger.AsLogr(), &cfg, isAuth),
 		)
-		prog = func() {
+		prog = func() int {
 			if err := ctx.Run(&ret); err != nil {
 				ret = NewRetCode(err) // overrides ret from kong bind
 			}
-			cleanupAndExit(cleanupFuncs, ret)
+			return ret
 		}
 	case executable == "reference-transaction": // too noisy
 		cfg.Autoupdate = "off"
 
 	default: // Catchall invocation
-		prog = func() {
+		prog = func() int {
 			if err := hooks.Catchall(grpcConn, &cfg, cfg.Home(), executable, cfg.Version, os.Args[1:]...); err != nil {
 				if h, ok := err.(*hooks.HookError); ok {
 					logger.Error(h.CausedBy, "Hook failed")
-					cleanupAndExit(cleanupFuncs, NewRetCode(err))
+					return NewRetCode(err)
 				}
 				logger.Error(err, "Hook failed")
-				cleanupAndExit(cleanupFuncs, NewRetCode(err))
+				return NewRetCode(err)
 			}
+			return 0
 		}
 	}
 
 	switch cfg.Autoupdate {
 	case "on":
 		updateCfg := overseer.Config{
-			Program:   func(state overseer.State) { prog() },
+			Program: func(state overseer.State) {
+				os.Exit(prog())
+			},
 			NoRestart: true,
 			Debug:     cfg.Verbose,
 			Fetcher: &fetcher.GRPCFetcher{
@@ -181,25 +178,37 @@ func main() {
 		}
 		overseer.Run(updateCfg)
 	case "off":
-		prog()
+		os.Exit(prog())
 	case "notify":
-		response, _ := fetcher.UpdateRequest(grpcConn, cfg.Version, string(cfg.Environment))
-		if response.ToUpdate {
-			fmt.Fprintf(os.Stderr, "Axilock update available. %s => %s\n", cfg.Version, response.LatestClientver)
-			fmt.Fprintf(os.Stderr, "Tip: you can enable autoupdate by setting ``autoupdate: true`` in ~/.axi/config.yaml\n")
-		}
-		prog()
+		wait := make(chan int, 1)
+		ret := make(chan int, 1)
+		go func() {
+			logger.V(1).Info("Checking for updates")
+			response, _ := fetcher.UpdateRequest(grpcConn, cfg.Version, string(cfg.Environment))
+			if response.ToUpdate {
+				fmt.Fprintf(os.Stderr,
+					"Axilock update available. %s => %s\n",
+					cfg.Version, response.LatestClientver)
+				fmt.Fprintf(os.Stderr,
+					"Tip: you can enable autoupdate by setting "+
+						"``autoupdate: true`` in ~/.axi/config.yaml\n")
+			}
+			wait <- 1
+		}()
+		go func() {
+			ret <- prog()
+		}()
+		<-wait
+		os.Exit(<-ret)
 	}
-
-	cleanup(cleanupFuncs...)
 }
 
-// get return code according to error type.
+// NewRetCode gets return code according to error type.
 // now i think of it, it will always be 0,
 // since all non secret response codes should
 // allow git to proceed
-func NewRetCode(err error) retCode {
-	var logger = context.Background().Logger()
+func NewRetCode(err error) int {
+	logger := context.Background().Logger()
 
 	var unsupportedConfiguration *hooks.ErrUnsupportedConfiguration
 	var unsupportedInstallationConfiguration *installer.ErrUnsupportedConfiguration
@@ -221,7 +230,7 @@ func NewRetCode(err error) retCode {
 
 	// hook errors are caused by axi pre-push run after install or some user hook
 	if errors.As(err, &hookError) {
-		return retCode(err.(*hooks.HookError).ExitCode)
+		return err.(*hooks.HookError).ExitCode
 	}
 
 	log := true // some errors don't need to be logged (at sentry or cli) like unauth
@@ -249,9 +258,4 @@ func NewRetCode(err error) retCode {
 	}
 
 	return 0
-}
-
-func cleanupAndExit(cleanupFuncs []cleanupFunc, code retCode) {
-	cleanup(cleanupFuncs...)
-	os.Exit(int(code))
 }

@@ -26,17 +26,6 @@ jobs:
         aws-region: ap-south-1
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-    - name: Add SSH Go Module Private Key
-      env:
-          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
-      run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan github.com >> ~/.ssh/known_hosts
-          ssh-agent -a $SSH_AUTH_SOCK > /dev/null
-          ssh-add - <<< "${{ secrets.SSH_KEY }}"
-          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> $GITHUB_ENV  
-          git config --global url."ssh://git@github.com/".insteadOf https://github.com/    
     - name: Set Up Go
       uses: actions/setup-go@v5
       with:
