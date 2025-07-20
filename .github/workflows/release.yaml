@@ -1,4 +1,4 @@
-name: release binary to users
+name: release
 
 on:
   workflow_dispatch:

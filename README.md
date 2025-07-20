@@ -1,34 +1,24 @@
-# Axi - Git Hooks Security Manager
+# Axi - Git Pre Push Secret Prevention
 
-Axi is a powerful Git hooks management tool that helps secure your development workflow by automatically scanning for secrets and sensitive information in your commits. It integrates seamlessly with your Git workflow and provides real-time security checks before code is pushed to remote repositories.
+[![release](https://github.com/axilock/axi/actions/workflows/release.yaml/badge.svg)](https://github.com/axilock/axi/actions/workflows/release.yaml) [![beta](https://github.com/axilock/axi/actions/workflows/beta.yaml/badge.svg)](https://github.com/axilock/axi/actions/workflows/beta.yaml)
 
-## Features
-
-- 🔒 **Automated Secret Detection**: Integrates with TruffleHog to scan commits for potential secrets and sensitive information
-- 🔄 **Auto-Updates**: Built-in auto-update mechanism to keep the tool current
-- 🪝 **Git Hooks Management**: Manages Git hooks with focus on pre-push security checks
-- 📊 **Remote Monitoring**: GRPC-based backend communication for centralized monitoring
-- 🎯 **Error Tracking**: Built-in Sentry integration for reliable error tracking
-- ⚙️ **Flexible Configuration**: YAML-based configuration for easy customization
+Axi is a powerful Git hooks management tool that can:
+1. Scan commits for potential secrets using [TruffleHog](https://github.com/trufflesecurity/trufflehog)
+2. Block pushes when secrets are detected
+3. Report findings to a centralized backend for metrics, monitoring and coverage
+4. Integrate with Sentry for reliable error tracking
+5. Supports YAML-based configuration for easy customization
 
 ## Requirements
 
-- Go 1.x or higher
+- Go 1.24 or higher
 - Git
-- TruffleHog (for secret scanning)
+- [TruffleHog](https://github.com/trufflesecurity/trufflehog) (for secret scanning) : pulled during install
 
-## Installation
+## Quickstart
 
-1. Obtain an API key from your Axi backend administrator / Or login to https://app.axilock.ai/ and get api token from `local-storage`
-2. Download AXI Binary from url: https://s3.ap-south-1.amazonaws.com/sekrit-releases/dev/v0.0.9-3-gee375b0/darwin/amd64/axi
-2. Install Axi using the following command:
 ```bash
-./axi install --api-key YOUR_API_KEY
-```
-
-To reinstall or update your installation:
-```bash
-./axi reinstall
+curl -sL https://get.axilock.ai | sh
 ```
 
 ## Building from Source
@@ -39,21 +29,12 @@ git clone https://github.com/axilock/axi.git
 cd axi
 ```
 
-2. Update submodules:
-```bash
-make protos
-```
+2. Edit ``config.mk`` for default options (some of these can be overridden by ``config.yaml``)
 
-3. Build the project:
-
-For development:
+3. Build and Install axi
 ```bash
-make dev
-```
-
-For release:
-```bash
-make release
+make
+bin/axi install
 ```
 
 Debug builds can be created by setting the DEBUG flag:
@@ -65,61 +46,33 @@ make dev DEBUG=true
 
 Axi automatically integrates with your Git workflow once installed. It primarily operates through the pre-push hook to scan commits for secrets before they are pushed to remote repositories.
 
-### Pre-push Hook
-
-The pre-push hook automatically:
-1. Scans new commits for potential secrets
-2. Reports findings to the configured backend
-3. Blocks pushes if secrets are detected
-
 ### Configuration
 
 Configuration can be specified in `~/.axi/config.yaml` or `~/.axi/config.yml`:
 
+Default configuration:
 ```yaml
-verbose: true    # Enable verbose output
-autoupdate: true # Enable auto-updates
-sentry: true     # Enable error tracking
+verbose: false                                   # Enable verbose output
+autoupdate: on                                   # Enable auto-updates. Use on, off or notify
+sentry: true                                     # Enable error tracking
+debug: false                                     # Enable debug logging, disable autoupdate and Sentry
+environment: release                             # Environment name: dev or release, depending on ``make dev`` or ``make``
+grpc_server_name: grpc.axilock.ai                # Insights backend grpc server name (not url)
+grpc_port: 443                                   # Insights backend grpc server port
+grpc_tls: true                                   # Are you using tls at backend grpc ?
+sentry_dsn: https://<key>@sentry.io/<project_id>
+sentryloglevelstocapture:                        # Only these log levels will be captured at sentry
+- error
+- fatal
+verbose: false                                   # Enable debug logging
+backendurl: https://app.axilock.ai/              # Insights backend http/s url
+offline: false                                   # Run completey offline, send no metrics whatsoever
 ```
 
-## Error Codes
-
-- `1`: Secrets found in commits
-- `3`: Configuration or setup errors
-
-## Development
-
-### Building and Installing
-
-For development workflow:
-```bash
-make buildAndInstall
-```
-
-### Distribution
-
-Create development distribution:
-```bash
-make dist-dev
-```
-
-Create release distribution:
-```bash
-make dist-release
-```
-
-List available distributions:
-```bash
-make dist-list
-```
-
-## Security
-
-Axi helps prevent accidental commit of secrets by:
-- Scanning commits using TruffleHog
-- Blocking pushes when secrets are detected
-- Reporting findings to a centralized backend for monitoring
 
 ## License
 
-[Add your license information here]
+Copyright (c) Axilock. All rights reserved.  
+SPDX-License-Identifier: Apache-2.0
+
+Trufflehog is downloaded at runtime and is licesed under [AGPL 3.0](https://github.com/trufflesecurity/trufflehog?tab=AGPL-3.0-1-ov-file)

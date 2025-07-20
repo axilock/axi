@@ -15,17 +15,19 @@ import (
 )
 
 // set via go build -X github.com/axilock/axi/internal/config.FLAG=value
-var Version string
-var debug string
-var env string
-var autoupdate string
-var grpcServerName string
-var grpcPort string
-var sentryDsn string
-var grpcTls string
-var backendUrl string
-var verbose string
-var offline string
+var (
+	Version        string
+	debug          string
+	env            string
+	autoupdate     string
+	grpcServerName string
+	grpcPort       string
+	sentryDsn      string
+	grpcTls        string
+	backendUrl     string
+	verbose        string
+	offline        string
+)
 
 type Env string
 
@@ -55,7 +57,7 @@ type ConfigP struct { // for yaml unmarshalling
 	AxiHomeDirName           *string         `yaml:"-"`
 	Debug                    *bool           `yaml:"debug"`
 	Autoupdate               *string         `yaml:"autoupdate"`
-	Version                  *string         `yaml:"version"`
+	Version                  *string         `yaml:"-"`
 	Environment              *Env            `yaml:"environment"`
 	GRPCServerName           *string         `yaml:"grpc_server_name"`
 	GRPCPort                 *string         `yaml:"grpc_port"`
