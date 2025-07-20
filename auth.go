@@ -10,7 +10,7 @@ import (
 type AuthCmd struct{}
 
 func (a *AuthCmd) Run(cfg *config.Config, grpcConn *grpc.ClientConn) error {
-	key, err := auth.Login(grpcConn, cfg.BackendUrl)
+	key, err := auth.Login(grpcConn, cfg.FrontendURL)
 	if err != nil {
 		return err
 	}

@@ -42,6 +42,8 @@ Debug builds can be created by setting the DEBUG flag:
 make dev DEBUG=true
 ```
 
+Read the [documentation](https://docs.axilock.ai/secret-prevention/self-host/cli/) for more options.
+
 ## Usage
 
 Axi automatically integrates with your Git workflow once installed. It primarily operates through the pre-push hook to scan commits for secrets before they are pushed to remote repositories.
@@ -61,11 +63,11 @@ grpc_server_name: grpc.axilock.ai                # Insights backend grpc server 
 grpc_port: 443                                   # Insights backend grpc server port
 grpc_tls: true                                   # Are you using tls at backend grpc ?
 sentry_dsn: https://<key>@sentry.io/<project_id>
-sentryloglevelstocapture:                        # Only these log levels will be captured at sentry
+sentry_log_levels_to_capture:                    # Only these log levels will be captured at sentry
 - error
 - fatal
 verbose: false                                   # Enable debug logging
-backendurl: https://app.axilock.ai/              # Insights backend http/s url
+frontend_url: https://app.axilock.ai/            # Insights frontend http/s url
 offline: false                                   # Run completey offline, send no metrics whatsoever
 ```
 

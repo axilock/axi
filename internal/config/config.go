@@ -24,7 +24,7 @@ var (
 	grpcPort       string
 	sentryDsn      string
 	grpcTls        string
-	backendUrl     string
+	frontendURL    string
 	verbose        string
 	offline        string
 )
@@ -48,7 +48,7 @@ type Config struct {
 	SentryDsn                string
 	SentryLogLevelsToCapture []sentry.Level
 	Verbose                  bool
-	BackendUrl               string
+	FrontendURL              string
 	Offline                  bool
 	home                     string
 }
@@ -65,7 +65,7 @@ type ConfigP struct { // for yaml unmarshalling
 	SentryDsn                *string         `yaml:"sentry_dsn"`
 	SentryLogLevelsToCapture *[]sentry.Level `yaml:"sentry_log_levels_to_capture"`
 	Verbose                  *bool           `yaml:"verbose"`
-	BackendUrl               *string         `yaml:"backend_url"`
+	FrontendURL              *string         `yaml:"frontend_url"`
 	Offline                  *bool           `yaml:"offline"`
 }
 
@@ -80,7 +80,7 @@ func NewConfig() Config {
 		GRPCPort:                 grpcPort,
 		GRPCTLs:                  grpcTls == "true",
 		SentryDsn:                sentryDsn,
-		BackendUrl:               backendUrl,
+		FrontendURL:              frontendURL,
 		SentryLogLevelsToCapture: []sentry.Level{"error", "fatal"},
 		Verbose:                  verbose == "true",
 		Offline:                  offline == "true",
@@ -136,8 +136,8 @@ func (c Config) WithRuntimeYAML() Config {
 		if configYaml.Verbose != nil {
 			c.Verbose = *configYaml.Verbose
 		}
-		if configYaml.BackendUrl != nil {
-			c.BackendUrl = *configYaml.BackendUrl
+		if configYaml.FrontendURL != nil {
+			c.FrontendURL = *configYaml.FrontendURL
 		}
 		if configYaml.Offline != nil {
 			c.Offline = *configYaml.Offline

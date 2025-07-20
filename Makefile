@@ -14,7 +14,7 @@ BASE_LDFLAGS = -X ${CONFIG}.Version=$(VERSION) \
 			   -X ${CONFIG}.grpcPort=$(GRPC_PORT) \
 			   -X ${CONFIG}.grpcTls=$(GRPC_TLS) \
 			   -X ${CONFIG}.sentryDsn=$(SENTRY_DSN) \
-			   -X ${CONFIG}.backendUrl=$(BACKEND_URL) \
+			   -X ${CONFIG}.frontendURL=$(FRONTEND_URL) \
 			   -X ${CONFIG}.verbose=$(VERBOSE) \
 			   -X ${CONFIG}.offline=$(OFFLINE)
 

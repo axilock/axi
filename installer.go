@@ -55,7 +55,7 @@ func (c *InstallCmd) Run(cfg *config.Config, logger logr.Logger) error {
 
 	if !cfg.Offline {
 		if c.ApiKey == "" {
-			key, err := auth.Login(conn, cfg.BackendUrl)
+			key, err := auth.Login(conn, cfg.FrontendURL)
 			if err != nil {
 				return &ErrInstallationFailed{error: err}
 			}

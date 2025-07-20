@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func Login(conn *grpc.ClientConn, backendUrl string) (string, error) {
+func Login(conn *grpc.ClientConn, frontendURL string) (string, error) {
 	uuid := uuid.New().String()
 	client := pb.NewSessionServiceClient(conn)
 	request := pb.CreateAuthSessionRequest{InitToken: uuid}
@@ -28,7 +28,7 @@ func Login(conn *grpc.ClientConn, backendUrl string) (string, error) {
 	}()
 
 	link := fmt.Sprintf("%s/client/login/?clitoken=%s",
-		backendUrl,
+		frontendURL,
 		uuid,
 	)
 	fmt.Println("Opening browser @ " + link)
@@ -44,10 +44,4 @@ func Login(conn *grpc.ClientConn, backendUrl string) (string, error) {
 
 	fmt.Println("Authentication successful!")
 	return <-apiKeyChan, nil
-}
-
-func timeout(cancel context.CancelFunc) {
-	fmt.Println("Timed out while trying to authenticate")
-	fmt.Println("Please try again in sometime")
-	cancel()
 }
