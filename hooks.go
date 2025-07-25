@@ -58,7 +58,7 @@ func (h *HookCmd) Run(
 
 		if len(out.Secrets) > 0 {
 			*ret = 1
-			if cfg.Offline {
+			if !cfg.Offline {
 				err := sendSecretAlerts(conn, repo, out.Secrets)
 				if err != nil {
 					logger.Error(err, err.Error())
@@ -102,7 +102,7 @@ func sendSecretAlerts(conn *grpc.ClientConn, repo string, secrets []scanner.Secr
 		errc <- nil
 	}()
 
-	logger.Info(fmt.Sprintf("Found %d secrets", len(secrets)))
+	logger.Info(fmt.Sprintf("Alert sent for %d secrets", len(secrets)))
 	return <-errc
 }
 
@@ -120,7 +120,7 @@ func sendCommitData(conn *grpc.ClientConn, repo string, commits []git.Commit) er
 		})
 	}
 
-	logger.Info(fmt.Sprintf("Scanned %d commits", len(commits)))
+	logger.Info(fmt.Sprintf("Synced %d commits", len(commits)))
 	logger.V(1).Info(fmt.Sprintf("Commits: %v", commitspb))
 
 	request := pb.SendCommitDataRequest{
